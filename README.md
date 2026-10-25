@@ -1,6 +1,6 @@
 # S33 - Stompbox
 
-Pedaliera di effetti audio per il browser, pensata per **iPhone in verticale** e installabile come **PWA**.
+Pedaliera di effetti audio per il browser, pensata per **iPhone in verticale** e utilizzabile anche su **iPad e desktop in orizzontale**. Installabile come **PWA**.
 Quattro pedali in catena: **Chorus**, **Flanger**, **Delay** e **Riverbero**. Il suono è elaborato in tempo reale con la Web Audio API e quattro `AudioWorklet` scritti a mano, senza librerie esterne.
 
 ## Caratteristiche
@@ -10,6 +10,7 @@ Quattro pedali in catena: **Chorus**, **Flanger**, **Delay** e **Riverbero**. Il
 - **Tap tempo** sul delay, con display a tre cifre a sette segmenti che mostra i BPM corrispondenti al tempo impostato.
 - **Indicatori di livello ad ago** (IN e OUT) con spia di clipping.
 - **Pedali riordinabili** trascinando la maniglia ≡: l'ordine cambia anche nel segnale audio.
+- **Due layout**: su telefono e schermi stretti i pedali sono in colonna; da circa 1000 px di larghezza in su (iPad in orizzontale, desktop) si dispongono affiancati in riga, con pannello d'ingresso e indicatori in alto.
 - **Funziona offline** una volta installata (service worker).
 - Un solo file `index.html`, senza build e senza dipendenze.
 
@@ -17,11 +18,12 @@ Quattro pedali in catena: **Chorus**, **Flanger**, **Delay** e **Riverbero**. Il
 
 | Gesto | Effetto |
 | --- | --- |
-| Trascinare una manopola in verticale | Cambia il valore (su = di più) |
-| Doppio tocco su una manopola | Riporta il valore iniziale |
+| Trascinare una manopola in verticale (dito o mouse) | Cambia il valore (su = di più) |
+| Rotellina del mouse su una manopola | Cambia il valore (solo desktop) |
+| Doppio tocco (o doppio clic) su una manopola | Riporta il valore iniziale |
 | Toccare il footswitch del pedale | Attiva o esclude l'effetto (il LED si accende) |
 | Toccare più volte **TAP** | Imposta il tempo del delay sulla media degli ultimi tocchi (massimo cinque) |
-| Trascinare la maniglia ≡ di un pedale | Sposta il pedale nella catena |
+| Trascinare la maniglia ≡ di un pedale | Sposta il pedale nella catena (in verticale o in orizzontale, a seconda del layout) |
 
 All'avvio il delay è acceso, gli altri effetti sono spenti. La catena predefinita è:
 

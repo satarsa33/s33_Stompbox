@@ -41,7 +41,7 @@ h1{font-size:13px;letter-spacing:3px;text-transform:uppercase;margin:4px 2px 12p
 .pedal.on .led{background:#ff3b30;box-shadow:0 0 12px 3px rgba(255,59,48,.8)}
 .knobs{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:4px;margin-bottom:14px}
 .kb{text-align:center}
-.kn{position:relative;width:62px;height:62px;margin:0 auto;touch-action:none;cursor:ns-resize}
+.kn{position:relative;width:var(--ks,62px);height:var(--ks,62px);margin:0 auto;touch-action:none;cursor:ns-resize}
 .ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 225deg,#fff var(--d,0deg),rgba(0,0,0,.4) var(--d,0deg) 270deg,transparent 270deg)}
 .cap{position:absolute;inset:7px;border-radius:50%;background:radial-gradient(circle at 35% 28%,#5a5a5a,#151515 75%);box-shadow:0 3px 6px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.25);transform:rotate(var(--r,-135deg))}
 .cap b{position:absolute;top:4px;left:50%;width:3px;height:12px;margin-left:-1.5px;border-radius:2px;background:#fff}
@@ -71,6 +71,26 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 html,body{overscroll-behavior:none}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 input{-webkit-user-select:auto;user-select:auto}
+@media (min-width:600px) and (max-width:999px){
+  main{max-width:600px}
+  #board{--ks:72px}
+  .vus{justify-content:center}.vu{max-width:240px}
+}
+@media (min-width:1000px){
+  main{max-width:1500px;padding:20px 28px 40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:20px;align-items:start}
+  h1{grid-column:1/-1}
+  .inp{grid-column:1;grid-row:2;margin-bottom:0}
+  .top{grid-column:2;grid-row:2;position:static;padding:0;margin:0;background:transparent}
+  .vus{gap:12px}.vu{max-width:360px}
+  main>.cable{display:none}
+  #board{grid-column:1/-1;display:flex;flex-direction:row;align-items:stretch;margin-top:20px;--ks:68px}
+  #board>.pedal{flex:1 1 0;min-width:0}
+  #board>.cable{flex:none;width:22px;height:6px;margin:0;align-self:center;background:linear-gradient(180deg,#222,#666,#222)}
+  .knobs{grid-template-columns:repeat(2,1fr);row-gap:12px}
+  .knobs .kb:nth-child(3):last-child{grid-column:1/-1}
+  main>.note{grid-column:1/-1}
+}
+@media (min-width:1400px){#board{--ks:80px}}
 </style>
 </head>
 <body>
@@ -96,7 +116,7 @@ input{-webkit-user-select:auto;user-select:auto}
   <div class="cable"></div>
   <div id="board"></div>
   <div class="cable"></div>
-  <p class="note" style="text-align:center;margin-top:6px">Manopole: trascina in verticale, doppio tocco per il valore iniziale · Pedali: trascina ≡ per spostarli</p>
+  <p class="note" style="text-align:center;margin-top:6px">Manopole: trascina in verticale (o usa la rotellina), doppio tocco per il valore iniziale · Pedali: trascina ≡ per spostarli</p>
 </main>
 
 <script type="text/worklet" id="wk">
@@ -479,14 +499,22 @@ registerProcessor('reverb-fx', ReverbFx);
     draw(k); apply();
   }
 
-  // trascinamento dei pedali
+  // trascinamento dei pedali (in verticale nel layout stretto, in orizzontale in quello largo)
   var gd = null;
+  function isHz() {
+    if (PED.length < 2) return false;
+    return Math.abs(PED[0].el.getBoundingClientRect().top - PED[1].el.getBoundingClientRect().top) < 5;
+  }
   board.addEventListener('pointerdown', function (e) {
     var g = e.target.closest('.grip');
     if (!g) return;
+    var hz = isHz();
     var s = g.closest('.pedal'), i = PED.map(function (q) { return q.el; }).indexOf(s);
-    var rects = PED.map(function (q) { var r = q.el.getBoundingClientRect(); return { top: r.top + window.scrollY, h: r.height }; });
-    gd = { s: s, i: i, t: i, y0: e.clientY + window.scrollY, cy: e.clientY, rects: rects, raf: 0 };
+    var rects = PED.map(function (q) {
+      var r = q.el.getBoundingClientRect();
+      return hz ? { pos: r.left + window.scrollX, size: r.width } : { pos: r.top + window.scrollY, size: r.height };
+    });
+    gd = { s: s, i: i, t: i, hz: hz, p0: hz ? e.clientX + window.scrollX : e.clientY + window.scrollY, cx: e.clientX, cy: e.clientY, rects: rects, raf: 0 };
     try { g.setPointerCapture(e.pointerId); } catch (x) {}
     s.classList.add('drag');
     board.classList.add('dragging');
@@ -494,29 +522,32 @@ registerProcessor('reverb-fx', ReverbFx);
     gd.raf = requestAnimationFrame(autoscroll);
   });
   function gdUpdate() {
-    var dy = gd.cy + window.scrollY - gd.y0, r = gd.rects[gd.i], t = 0;
-    gd.s.style.transform = 'translateY(' + dy + 'px) scale(1.02)';
-    var center = r.top + r.h / 2 + dy;
-    gd.rects.forEach(function (q, j) { if (j !== gd.i && q.top + q.h / 2 < center) t++; });
+    var d = (gd.hz ? gd.cx + window.scrollX : gd.cy + window.scrollY) - gd.p0, r = gd.rects[gd.i], t = 0;
+    var tr = gd.hz ? 'translateX(' : 'translateY(';
+    gd.s.style.transform = tr + d + 'px) scale(1.02)';
+    var center = r.pos + r.size / 2 + d;
+    gd.rects.forEach(function (q, j) { if (j !== gd.i && q.pos + q.size / 2 < center) t++; });
     gd.t = t;
-    var sh = r.h + 18;
+    var sh = r.size + (gd.hz ? 22 : 18);
     PED.forEach(function (p, j) {
       if (j === gd.i) return;
       var off = 0;
       if (gd.i < gd.t && j > gd.i && j <= gd.t) off = -sh;
       if (gd.i > gd.t && j >= gd.t && j < gd.i) off = sh;
-      p.el.style.transform = off ? 'translateY(' + off + 'px)' : '';
+      p.el.style.transform = off ? tr + off + 'px)' : '';
     });
   }
   function autoscroll() {
     if (!gd) return;
-    var edge = 90, step = 0, hgt = window.innerHeight;
-    if (gd.cy < edge) step = -Math.ceil((edge - gd.cy) / 8);
-    else if (gd.cy > hgt - edge) step = Math.ceil((gd.cy - (hgt - edge)) / 8);
-    if (step) { window.scrollBy(0, step); gdUpdate(); }
+    if (!gd.hz) {
+      var edge = 90, step = 0, hgt = window.innerHeight;
+      if (gd.cy < edge) step = -Math.ceil((edge - gd.cy) / 8);
+      else if (gd.cy > hgt - edge) step = Math.ceil((gd.cy - (hgt - edge)) / 8);
+      if (step) { window.scrollBy(0, step); gdUpdate(); }
+    }
     gd.raf = requestAnimationFrame(autoscroll);
   }
-  board.addEventListener('pointermove', function (e) { if (gd) { gd.cy = e.clientY; gdUpdate(); } });
+  board.addEventListener('pointermove', function (e) { if (gd) { gd.cx = e.clientX; gd.cy = e.clientY; gdUpdate(); } });
   function gdEnd() {
     if (!gd) return;
     cancelAnimationFrame(gd.raf);
@@ -526,6 +557,15 @@ registerProcessor('reverb-fx', ReverbFx);
     PED.forEach(function (p) { p.el.style.transform = ''; });
     if (d.t !== d.i) { var moved = PED.splice(d.i, 1)[0]; PED.splice(d.t, 0, moved); layout(); wire(); }
   }
+  // rotellina del mouse sulle manopole
+  board.addEventListener('wheel', function (e) {
+    var el = e.target.closest('.kn');
+    if (!el) return;
+    e.preventDefault();
+    var k = el.__k, dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    k.n = Math.min(1, Math.max(0, k.n - dy / 600));
+    draw(k); apply();
+  }, { passive: false });
   board.addEventListener('pointerup', gdEnd);
   board.addEventListener('pointercancel', gdEnd);
 
